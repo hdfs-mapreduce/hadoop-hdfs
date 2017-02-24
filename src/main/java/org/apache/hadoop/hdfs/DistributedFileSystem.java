@@ -100,6 +100,13 @@ import com.google.common.base.Preconditions;
  * DistributedFileSystem.
  *
  *****************************************************************/
+
+ /*
+客户端在执行文件写操作前，首先需要调用DistributedFileSystem.create()创建一个空的HDFS文件，
+并且获取这个HDFS文件的输出流HdfsDataOutStream对象。成功的获取到输出流对象后，客户端就可以
+在输出流HdfsDataOutStream对象上调用write()方法执行写操作了。
+ */
+
 @InterfaceAudience.LimitedPrivate({ "MapReduce", "HBase" })
 @InterfaceStability.Unstable
 public class DistributedFileSystem extends FileSystem {

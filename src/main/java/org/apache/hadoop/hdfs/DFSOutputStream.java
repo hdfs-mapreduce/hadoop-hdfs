@@ -1850,22 +1850,26 @@ public class DFSOutputStream extends FSOutputSummer
   }
 
   // @see FSOutputSummer#writeChunk()
+  // 用于向数据流管道中写入指定大小的数据块以及校验和。
   @Override
   protected synchronized void writeChunk(byte[] b, int offset, int len,
       byte[] checksum, int ckoff, int cklen) throws IOException {
-    dfsClient.checkOpen();
-    checkClosed();
-
+    dfsClient.checkOpen();  // 检查DFSClient状态
+    checkClosed(); // 检查DFSOutStream状态
+	
+	// 输入的数据长度大于一个校验块(chunk)的大小时，则抛出异常
     if (len > bytesPerChecksum) {
       throw new IOException("writeChunk() buffer size is " + len +
                             " is larger than supported  bytesPerChecksum " +
                             bytesPerChecksum);
     }
+	// 校验数据长度错误，抛出异常
     if (cklen != 0 && cklen != getChecksumSize()) {
       throw new IOException("writeChunk() checksum size is supposed to be " +
                             getChecksumSize() + " but found to be " + cklen);
     }
 
+    // 当前数据包为空，则构造一个新的数据包
     if (currentPacket == null) {
       currentPacket = createPacket(packetSize, chunksPerPacket, 
           bytesCurBlock, currentSeqno++);
@@ -1879,13 +1883,15 @@ public class DFSOutputStream extends FSOutputSummer
       }
     }
 
+
+	// 将当前校验数据、校验块写入到数据包中
     currentPacket.writeChecksum(checksum, ckoff, cklen);
     currentPacket.writeData(b, offset, len);
     currentPacket.numChunks++;
     bytesCurBlock += len;
 
     // If packet is full, enqueue it for transmission
-    //
+    // 如果当前数据包已经满了，或者写满一个数据块，则当前的数据包放入发送队列中
     if (currentPacket.numChunks == currentPacket.maxChunks ||
         bytesCurBlock == blockSize) {
       if (DFSClient.LOG.isDebugEnabled()) {
@@ -1901,11 +1907,13 @@ public class DFSOutputStream extends FSOutputSummer
       // If the reopened file did not end at chunk boundary and the above
       // write filled up its partial chunk. Tell the summer to generate full 
       // crc chunks from now on.
+	  // 如果之前的chunk没有写满，则当前packet只发送这个 appendChunk。发送完后，将checksum和appendChunk重置
       if (appendChunk && bytesCurBlock%bytesPerChecksum == 0) {
         appendChunk = false;
         resetChecksumBufSize();
       }
 
+	  // 恢复packet大小，这里避免了越过数据块的边界
       if (!appendChunk) {
         int psize = Math.min((int)(blockSize-bytesCurBlock), dfsClient.getConf().writePacketSize);
         computePacketChunkSize(psize, bytesPerChecksum);
@@ -1913,7 +1921,7 @@ public class DFSOutputStream extends FSOutputSummer
       //
       // if encountering a block boundary, send an empty packet to 
       // indicate the end of block and reset bytesCurBlock.
-      //
+      // 如果写满了一个数据块的长度，则发送一个空packet作为标识，标明发送了一个完整的数据块
       if (bytesCurBlock == blockSize) {
         currentPacket = createPacket(0, 0, bytesCurBlock, currentSeqno++);
         currentPacket.lastPacketInBlock = true;
