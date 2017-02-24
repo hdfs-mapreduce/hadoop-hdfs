@@ -614,6 +614,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
       Configuration conf, FileSystem.Statistics stats)
     throws IOException {
     // Copy only the required DFSClient configuration
+	// 初始化属性
     this.dfsClientConf = new Conf(conf);
     if (this.dfsClientConf.useLegacyBlockReaderLocal) {
       LOG.debug("Using legacy short-circuit local reads.");
@@ -660,10 +661,12 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
       this.namenode = rpcNamenode;
       dtService = null;
     } else {
+	  // 通过NameNodeProxies.createProxy() 创建Namenode RPC引用
       Preconditions.checkArgument(nameNodeUri != null,
           "null URI");
       proxyInfo = NameNodeProxies.createProxy(conf, nameNodeUri,
           ClientProtocol.class, nnFallbackToSimpleAuth);
+	  // 对属性赋值
       this.dtService = proxyInfo.getDelegationTokenService();
       this.namenode = proxyInfo.getProxy();
     }
@@ -676,7 +679,8 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
       Joiner.on(',').join(localInterfaces)+ "] with addresses [" +
       Joiner.on(',').join(localInterfaceAddrs) + "]");
     }
-    
+
+    // 初始化caching相关属性
     Boolean readDropBehind = (conf.get(DFS_CLIENT_CACHE_DROP_BEHIND_READS) == null) ?
         null : conf.getBoolean(DFS_CLIENT_CACHE_DROP_BEHIND_READS, false);
     Long readahead = (conf.get(DFS_CLIENT_CACHE_READAHEAD) == null) ?
@@ -690,6 +694,8 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
     this.clientContext = ClientContext.get(
         conf.get(DFS_CLIENT_CONTEXT, DFS_CLIENT_CONTEXT_DEFAULT),
         dfsClientConf);
+
+	// 初始化hedgedRead相关属性
     this.hedgedReadThresholdMillis = conf.getLong(
         DFSConfigKeys.DFS_DFSCLIENT_HEDGED_READ_THRESHOLD_MILLIS,
         DFSConfigKeys.DEFAULT_DFSCLIENT_HEDGED_READ_THRESHOLD_MILLIS);
@@ -948,6 +954,10 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
   /**
    * Close the file system, abandoning all of the leases and files being
    * created and close connections to the namenode.
+   首先调用closeAllFilesBeingWritten() 关闭所有正在进行写操作的IO流。
+   接下来将clientRunning标志位置为false，
+   停止DFSClient对外服务，然后停止租约管理器，
+   最后关闭Namenode的RPC连接。
    */
   @Override
   public synchronized void close() throws IOException {
@@ -956,7 +966,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
         closeAllFilesBeingWritten(false);
         clientRunning = false;
         getLeaseRenewer().closeClient(this);
-        // close connections to the namenode
+        // close connections to the namenode  关闭与namenode之间的rpc连接
         closeConnectionToNamenode();
       }
     } finally {
@@ -1859,8 +1869,10 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
    */
   @Deprecated
   public boolean rename(String src, String dst) throws IOException {
+	// 检查DFSClient的运行情况
     checkOpen();
     try {
+	  // 调用 ClientProtocol。rename()方法发起重命名请求
       return namenode.rename(src, dst);
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class,
@@ -2631,6 +2643,7 @@ public class DFSClient implements java.io.Closeable, RemotePeerFactory,
    */
   long rollEdits() throws AccessControlException, IOException {
     try {
+	  // 通过ClientProtocol接口触发Namenode进行rollEdits操作
       return namenode.rollEdits();
     } catch(RemoteException re) {
       throw re.unwrapRemoteException(AccessControlException.class);
