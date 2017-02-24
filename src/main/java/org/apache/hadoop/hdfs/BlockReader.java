@@ -28,6 +28,15 @@ import org.apache.hadoop.hdfs.shortcircuit.ClientMmap;
  * A BlockReader is responsible for reading a single block
  * from a single datanode.
  */
+ /*
+read()、readFully()、readAll(): 将数据读取到byte[]数组中
+skip(): 从数据块中跳过若干字节
+available(): 当不用进行一次新的网络IO时，当前输入流可以读取的字节数
+isLocal(): 是否是一个本地读取、也就是说，客户端和数据块是否在同一台机器上。
+isShortCircuit(): 是否是一个短路读取，注意短路读取必须是本地读取。
+getClientMmap(): 为当前读取获得一个内存映射区域
+
+ */
 public interface BlockReader extends ByteBufferReadable {
   
 

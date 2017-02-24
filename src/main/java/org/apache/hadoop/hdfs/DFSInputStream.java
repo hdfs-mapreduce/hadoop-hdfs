@@ -1609,12 +1609,14 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
       }
     }
     ByteBuffer buffer = null;
+	// 首选尝试零拷贝方式
     if (dfsClient.getConf().shortCircuitMmapEnabled) {
       buffer = tryReadZeroCopy(maxLength, opts);
     }
     if (buffer != null) {
       return buffer;
     }
+	// 如果零拷贝方式不成功，则退化为一个普通的读取
     buffer = ByteBufferUtil.fallbackRead(this, bufferPool, maxLength);
     if (buffer != null) {
       extendedReadBuffers.put(buffer, bufferPool);
@@ -1632,6 +1634,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
     final long blockPos = curPos - blockStartInFile;
 
     // Shorten this read if the end of the block is nearby.
+	// 首先确保读取是在统一数据块之内
     long length63;
     if ((curPos + maxLength) <= (curEnd + 1)) {
       length63 = maxLength;
@@ -1654,6 +1657,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
       }
     }
     // Make sure that don't go beyond 31-bit offsets in the MappedByteBuffer.
+	// 确保读取的数据块没有超过2GB
     int length;
     if (blockPos + length63 <= Integer.MAX_VALUE) {
       length = (int)length63;
@@ -1680,6 +1684,8 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
             "; curEnd=" + curEnd);
       }
     }
+
+	// 调用getClientMmap将文件映射到内存中，并返回clientMmap对象。这个对象包含了MappedByteBuffer对象
     final ClientMmap clientMmap = blockReader.getClientMmap(opts);
     if (clientMmap == null) {
       if (DFSClient.LOG.isDebugEnabled()) {
@@ -1693,6 +1699,7 @@ implements ByteBufferReadable, CanSetDropBehind, CanSetReadahead,
     ByteBuffer buffer;
     try {
       seek(curPos + length);
+	  // 将内存映射缓冲区返回，在缓冲区中是数据块文件的数据
       buffer = clientMmap.getMappedByteBuffer().asReadOnlyBuffer();
       buffer.position((int)blockPos);
       buffer.limit((int)(blockPos + length));

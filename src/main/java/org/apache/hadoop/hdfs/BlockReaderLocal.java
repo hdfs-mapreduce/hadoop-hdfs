@@ -53,6 +53,11 @@ import com.google.common.base.Preconditions;
  * <li>The client reads the file descriptors.</li>
  * </ul>
  */
+
+ /*
+本类实现了本地短路读取功能，也就是客户端与Datanode在同一台机器上，客户端可以绕过Datanode进程直接从本地磁盘读取数据
+ */
+
 class BlockReaderLocal implements BlockReader {
   static final Log LOG = LogFactory.getLog(BlockReaderLocal.class);
 
@@ -385,6 +390,7 @@ class BlockReaderLocal implements BlockReader {
 
   @Override
   public synchronized int read(ByteBuffer buf) throws IOException {
+	// 是否跳过数据校验
     boolean canSkipChecksum = createNoChecksumContext();
     try {
       String traceString = null;
@@ -400,6 +406,7 @@ class BlockReaderLocal implements BlockReader {
       }
       int nRead;
       try {
+		// 可以跳过数据校验，以及不需要预读时，调用readWithoutBounceBuffer方法
         if (canSkipChecksum && zeroReadaheadRequested) {
           nRead = readWithoutBounceBuffer(buf);
         } else {
