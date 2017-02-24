@@ -5,3 +5,9 @@ HDFS目前提供了三个客户端接口: DistributedFileSystem、FsShell和DFSAdmin。
 * FsShell工具使用户可以通过HDFS Shell命令执行常见的额文件系统操作，例如创建文件、删除文件、创建目录等;
 * DFSAdmin则向系统管理员提供了管理HDFS的工具，例如执行升级、管理安全模式等操作。
 
+## DFSClient实现
+DFSClient是一个真正实现了分布式文件系统客户端功能的类，是用户使用HDFS各项功能的起点。DFSClient会连接到HDFS，
+对外提供管理文件/目录、读写文件以及管理与配置HDFS系统等功能。
+对于管理文件/目录以及管理与配置HDFS系统这两个功能，DFSClient并不需要与Datanode交互，而是直接调用远程接口ClientProtocol
+调用Namenode提供的服务即可。而对于文件读写功能，DFSClient除了需要调用ClientProtocol与Namenode交互外，还需要通过流式
+接口DataTransferProtocol与Datanode交互传输数据。
